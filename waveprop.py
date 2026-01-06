@@ -13,6 +13,7 @@ class Solver:
         # Handy values
         self.dt = t_F/(N-1)
         self.dx = x_F/(M-1)
+        self.C = self.c*self.dt/self.dx # Courant number
 
     def FTCS(self,u_0:np.ndarray,u_x_F=[0,0]):
         """u_0 is the initial condition as an array size 1,2M-1
@@ -26,9 +27,42 @@ class Solver:
             u[n+1][0] = u_x_F[0]
             u[n+1][-1] = u_x_F[1]
             for m in range(1,2*self.M-2):
-                u[n+1][m] = -self.c*self.dt*(u[n][m+1]-u[n][m-1])/2/self.dx + u[n][m]
+                u[n+1][m] = -self.C*(u[n][m+1]-u[n][m-1])/2 + u[n][m]
         return u
     
+    def LaxFriedrichs(self,u_0:np.ndarray,u_x_F=[0,0]):
+        """u_0 is the initial condition as an array size 1,2M-1
+        u_x_F is a tuple specifying the value of u to populate at each of
+        [-x_F,t] and [x_F,t] for all time
+        Output an array size N,2M-1 where the nth row corresponds to the
+        system after n*dt time steps"""
+        # I realise the only difference to FTCS is the cell calculation step -
+        # maybe could cut down number of duplicate lines
+        u = np.zeros((self.N,2*self.M-1))
+        u[0] = u_0
+        for n in range(self.N-1):
+            u[n+1][0] = u_x_F[0]
+            u[n+1][-1] = u_x_F[1]
+            for m in range(1,2*self.M-2):
+                u[n+1][m] = (1-self.C)/2*u[n][m+1] + (1+self.C)/2*u[n][m-1]
+        return u
+    
+    def LaxWendroff(self,u_0:np.ndarray,u_x_F=[0,0]):
+        """u_0 is the initial condition as an array size 1,2M-1
+        u_x_F is a tuple specifying the value of u to populate at each of
+        [-x_F,t] and [x_F,t] for all time
+        Output an array size N,2M-1 where the nth row corresponds to the
+        system after n*dt time steps"""
+        u = np.zeros((self.N,2*self.M-1))
+        u[0] = u_0
+        for n in range(self.N-1):
+            u[n+1][0] = u_x_F[0]
+            u[n+1][-1] = u_x_F[1]
+            for m in range(1,2*self.M-2):
+                u[n+1][m] = u[n][m] - self.C/2*(u[n][m+1]-u[n][m-1]) 
+                + (self.C**2)/2*(u[n][m+1] - 2*u[n][m] + u[n][m-1])
+        return u
+
     def get_x(self):
         return np.linspace(-self.x_F,self.x_F,2*self.M-1)
     
@@ -36,7 +70,7 @@ class Solver:
         return np.linspace(0,self.t_F,self.N)
     
     def get_courant(self):
-        return self.c*self.dt/self.dx
+        return self.C
 
 
 # Test waves
