@@ -13,12 +13,13 @@ class Solver:
         # Handy values
         self.dt = t_F/(N-1)
         self.dx = x_F/(M-1)
-        self.C = self.c*self.dt/self.dx # Courant number
+        self.C = c*t_F/x_F*(M-1)/(N-1) # Courant number
 
-    def FTCS(self,u_0:np.ndarray,u_x_F=[0,0]):
-        """u_0 is the initial condition as an array size 1,2M-1
+    def simulate(self,discret,u_0:np.ndarray,u_x_F=[0,0]):
+        """discret is the discretisation function
+        u_0 is the initial condition as an array size 1,2M-1
         u_x_F is a tuple specifying the value of u to populate at each of
-        [-x_F,t] and [x_F,t] for all time
+        [-x_F,t] and [x_F,t] for all time, default [0,0]
         Output an array size N,2M-1 where the nth row corresponds to the
         system after n*dt time steps"""
         u = np.zeros((self.N,2*self.M-1))
@@ -27,40 +28,7 @@ class Solver:
             u[n+1][0] = u_x_F[0]
             u[n+1][-1] = u_x_F[1]
             for m in range(1,2*self.M-2):
-                u[n+1][m] = -self.C*(u[n][m+1]-u[n][m-1])/2 + u[n][m]
-        return u
-    
-    def LaxFriedrichs(self,u_0:np.ndarray,u_x_F=[0,0]):
-        """u_0 is the initial condition as an array size 1,2M-1
-        u_x_F is a tuple specifying the value of u to populate at each of
-        [-x_F,t] and [x_F,t] for all time
-        Output an array size N,2M-1 where the nth row corresponds to the
-        system after n*dt time steps"""
-        # I realise the only difference to FTCS is the cell calculation step -
-        # maybe could cut down number of duplicate lines
-        u = np.zeros((self.N,2*self.M-1))
-        u[0] = u_0
-        for n in range(self.N-1):
-            u[n+1][0] = u_x_F[0]
-            u[n+1][-1] = u_x_F[1]
-            for m in range(1,2*self.M-2):
-                u[n+1][m] = (1-self.C)/2*u[n][m+1] + (1+self.C)/2*u[n][m-1]
-        return u
-    
-    def LaxWendroff(self,u_0:np.ndarray,u_x_F=[0,0]):
-        """u_0 is the initial condition as an array size 1,2M-1
-        u_x_F is a tuple specifying the value of u to populate at each of
-        [-x_F,t] and [x_F,t] for all time
-        Output an array size N,2M-1 where the nth row corresponds to the
-        system after n*dt time steps"""
-        u = np.zeros((self.N,2*self.M-1))
-        u[0] = u_0
-        for n in range(self.N-1):
-            u[n+1][0] = u_x_F[0]
-            u[n+1][-1] = u_x_F[1]
-            for m in range(1,2*self.M-2):
-                u[n+1][m] = u[n][m] - self.C/2*(u[n][m+1]-u[n][m-1]) 
-                + (self.C**2)/2*(u[n][m+1] - 2*u[n][m] + u[n][m-1])
+                discret(u,n,m,self.C)
         return u
 
     def get_x(self):
@@ -72,6 +40,18 @@ class Solver:
     def get_courant(self):
         return self.C
 
+def FTCS(u,n:int,m:int,C:float):
+    u[n+1][m] = -C/2*(u[n][m+1]-u[n][m-1]) + u[n][m]
+
+def LaxFriedrichs(u,n:int,m:int,C:float):
+    u[n+1][m] = (1-C)/2*u[n][m+1] + (1+C)/2*u[n][m-1]
+
+def BasicUpwind(u,n:int,m:int,C:float):
+    u[n+1][m] = u[n][m] - C*(u[n][m]-u[n][m-1])
+
+def LaxWendroff(u,n:int,m:int,C:float):
+    u[n+1][m] = u[n][m] - C/2*(u[n][m+1]-u[n][m-1]) 
+    + (C**2)/2*(u[n][m+1] - 2*u[n][m] + u[n][m-1])
 
 # Test waves
 def wave_f(x):
@@ -82,10 +62,20 @@ def wave_g(x):
     return np.piecewise(x, [x<=0, (x>0)&(x<1), x>=1],
                     [0, lambda y: y, 0])
 
+def wave_h(x,width=1):
+    return np.piecewise(x, [abs(x)<width, abs(x)>=1],
+                        [width, 0])
+
+def wave_i(x):
+    return np.piecewise(x,[abs(x)<np.pi/2, abs(x)>=np.pi/2],
+                 [lambda y: np.cos(y),0])
+
+def gaussian(x):
+    return np.exp(-x**2)
 
 # Run a test
 def run_test(solver,method,test_func):
-    return getattr(solver,method)(test_func(solver.get_x()))
+    return solver.simulate(method,test_func(solver.get_x()))
 
 
 
