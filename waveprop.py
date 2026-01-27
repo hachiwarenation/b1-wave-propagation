@@ -15,15 +15,15 @@ class Solver:
         self.dx = x_F/(M-1)
         self.C = c*t_F/x_F*(M-1)/(N-1) # Courant number
 
-    def simulate(self,discret,u_0:np.ndarray,u_x_F=[0,0]):
+    def simulate(self,discret,u_0,u_x_F=[0,0]):
         """discret is the discretisation function
-        u_0 is the initial condition as an array size 1,2M-1
+        u_0 is the initial condition as a function
         u_x_F is a tuple specifying the value of u to populate at each of
         [-x_F,t] and [x_F,t] for all time, default [0,0]
         Output an array size N,2M-1 where the nth row corresponds to the
         system after n*dt time steps"""
         u = np.zeros((self.N,2*self.M-1))
-        u[0] = u_0
+        u[0] = u_0(self.get_x())
         for n in range(self.N-1):
             u[n+1][0] = u_x_F[0]
             u[n+1][-1] = u_x_F[1]
@@ -75,7 +75,7 @@ def gaussian(x):
 
 # Run a test
 def run_test(solver,method,test_func):
-    return solver.simulate(method,test_func(solver.get_x()))
+    return solver.simulate(method,test_func)
 
 
 
