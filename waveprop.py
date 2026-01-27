@@ -15,8 +15,9 @@ class Solver:
         self.dx = x_F/(M-1)
         self.C = c*t_F/x_F*(M-1)/(N-1) # Courant number
 
-    def simulate(self,discret,u_0,u_x_F=[0,0]):
+    def simulate(self,discret,u_0,c_u,u_x_F=[0,0]):
         """discret is the discretisation function
+        c_u is the velocity function
         u_0 is the initial condition as a function
         u_x_F is a tuple specifying the value of u to populate at each of
         [-x_F,t] and [x_F,t] for all time, default [0,0]
@@ -28,8 +29,12 @@ class Solver:
             u[n+1][0] = u_x_F[0]
             u[n+1][-1] = u_x_F[1]
             for m in range(1,2*self.M-2):
-                discret(u,n,m,self.C)
+                # Variable speed -> C/c*c_u(u)
+                discret(u,n,m,self.C/self.c*c_u(u[n][m]))
         return u
+    
+    def simulatelinear(self,discret,u_0,u_x_F=[0,0]):
+        return self.simulate(discret,u_0,lambda U:self.c,u_x_F)
 
     def get_x(self):
         return np.linspace(-self.x_F,self.x_F,2*self.M-1)
@@ -72,11 +77,4 @@ def wave_i(x):
 
 def gaussian(x):
     return np.exp(-x**2)
-
-# Run a test
-def run_test(solver,method,test_func):
-    return solver.simulate(method,test_func)
-
-
-
 
